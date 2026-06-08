@@ -19,22 +19,11 @@ export default [
       'jest/prefer-expect-assertions': 'off',
     },
   },
+  eslintPluginPrettierRecommended,
   {
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
-      'prettier/prettier': [
-        'error',
-        {
-          semi: false,
-          singleQuote: true,
-          printWidth: 200,
-          bracketSameLine: true,
-          htmlWhitespaceSensitivity: 'strict',
-          proseWrap: 'never',
-          endOfLine: 'auto',
-        },
-      ],
+      'prettier/prettier': 'error',
     },
   },
-  eslintPluginPrettierRecommended,
 ]
