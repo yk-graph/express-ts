@@ -4,7 +4,10 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "forceConsistentCasingInFileNames": true,
-    "types": ["node", "jest"]
+    "types": ["node", "jest"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*", "*.mjs", "*.ts"],
   "exclude": ["node_modules", "dist"]
