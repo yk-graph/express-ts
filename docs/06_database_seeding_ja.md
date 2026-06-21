@@ -8,8 +8,10 @@
 ### 完了したタスク
 
 - [x] `prisma/seed.ts` の作成 — faker を使った Task・Project の初期データ投入スクリプト
-- [x] `package.json` の更新 — `@faker-js/faker` の追加・seed コマンドの設定
+- [x] `prisma/tsconfig.json` の作成 — seed.ts 向けの TypeScript 設定
 - [x] `prisma.config.mjs` の更新 — `migrations.seed` への seed コマンド登録
+- [x] `tsconfig.json` の更新 — `include` を `src/**/*` のみに整理
+- [x] `package.json` の更新 — `@faker-js/faker` の追加・`db:seed` スクリプトの追加・旧 `prisma.seed` の削除
 
 ---
 
@@ -17,10 +19,12 @@
 
 ```
 .
-├── prisma.config.mjs    ← seed コマンドを migrations.seed に追加
+├── prisma.config.mjs      ← seed コマンドを migrations.seed に追加
+├── tsconfig.json          ← include を src/**/* のみに整理
 ├── prisma/
-│   └── seed.ts          ← 初期データ投入スクリプト
-└── package.json         ← @faker-js/faker の追加・db:seed スクリプトの追加
+│   ├── seed.ts            ← 初期データ投入スクリプト
+│   └── tsconfig.json      ← seed.ts 向けの TypeScript 設定
+└── package.json           ← @faker-js/faker の追加・db:seed スクリプトの追加
 ```
 
 ---
@@ -131,9 +135,6 @@ Prisma v7 の公式ドキュメントのサンプルでも `tsx` が採用され
   },
   "devDependencies": {
     "@faker-js/faker": "^10.5.0"
-  },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
   }
 }
 ```
@@ -144,6 +145,51 @@ Prisma v7 の公式ドキュメントのサンプルでも `tsx` が採用され
 **`@faker-js/faker` を `devDependencies` に入れる理由**
 seed スクリプトは開発・テスト環境でのみ使うものであり、本番ビルドには不要です。
 `dependencies` ではなく `devDependencies` に分類することで、本番デプロイ時のバンドルサイズに影響しません。
+
+**`"prisma": { "seed": ... }` を削除した理由**
+Prisma v7 では seed コマンドの設定を `prisma.config.mjs` の `migrations.seed` で管理します。
+`package.json` の `prisma.seed` は v6 以前の書き方であり、両方に書くと設定が重複するため削除しました。
+
+---
+
+### 4. TypeScript 設定の整理
+
+#### `tsconfig.json` の `include` を整理
+
+```json
+// Before
+"include": ["src/**/*", "*.mjs", "*.ts"]
+
+// After
+"include": ["src/**/*"]
+```
+
+**`*.mjs` と `*.ts` を削除した理由**
+`rootDir: "./src"` を設定している以上、コンパイル対象は `src/` 配下のみという意図が明確です。
+`include` もそれに合わせることで設定の一貫性が保たれます。
+また、余分なパターンを残すと TypeScript 言語サーバーが `src/` 外のファイル（`prisma/seed.ts` など）を曖昧に扱い、型解決が不安定になります。
+
+#### `prisma/tsconfig.json` の新規作成
+
+```json
+{
+  "extends": "@tsconfig/node24/tsconfig.json",
+  "compilerOptions": {
+    "lib": ["DOM"],
+    "types": ["node"]
+  }
+}
+```
+
+**なぜ seed.ts 専用の tsconfig が必要か**
+`seed.ts` は `src/` の外（`prisma/` ディレクトリ）にあるため、ルートの `tsconfig.json`（`rootDir: "./src"`）のスコープ外です。
+ルートの tsconfig が適用されないと `@types/node` の型（`process` など）が解決されず、エディタで警告が出ます。
+
+`prisma/tsconfig.json` を置くことで、TypeScript 言語サーバーがこのファイルを `prisma/` 内のファイル専用の設定として読み込み、`process` などの Node.js グローバル型が正しく解決されます。
+
+**`/// <reference types="node" />` ではなく専用 tsconfig にした理由**
+`/// <reference types="node" />` はファイルに直接型参照を埋め込む書き方で、回避策的な位置づけです。
+専用の `tsconfig.json` を置く方法は `src/` 外にスクリプトを追加するたびに自動で適用されるため、スケールしやすく一般的なアプローチです。
 
 ---
 

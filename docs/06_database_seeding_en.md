@@ -8,8 +8,10 @@ This branch adds a seed script to populate the database with initial development
 ### Completed tasks
 
 - [x] Create `prisma/seed.ts` — seed script that inserts Task and Project records using faker
-- [x] Update `package.json` — add `@faker-js/faker` and the `db:seed` script
+- [x] Create `prisma/tsconfig.json` — TypeScript configuration scoped to the prisma directory
 - [x] Update `prisma.config.mjs` — register the seed command under `migrations.seed`
+- [x] Update `tsconfig.json` — narrow `include` to `src/**/*` only
+- [x] Update `package.json` — add `@faker-js/faker`, add `db:seed` script, remove legacy `prisma.seed`
 
 ---
 
@@ -17,10 +19,12 @@ This branch adds a seed script to populate the database with initial development
 
 ```
 .
-├── prisma.config.mjs    ← seed command added to migrations.seed
+├── prisma.config.mjs      ← seed command added to migrations.seed
+├── tsconfig.json          ← include narrowed to src/**/* only
 ├── prisma/
-│   └── seed.ts          ← initial data insertion script
-└── package.json         ← @faker-js/faker added, db:seed script added
+│   ├── seed.ts            ← initial data insertion script
+│   └── tsconfig.json      ← TypeScript config scoped to prisma/
+└── package.json           ← @faker-js/faker added, db:seed script added
 ```
 
 ---
@@ -128,9 +132,6 @@ It is also the tool used in Prisma v7's official documentation examples.
   },
   "devDependencies": {
     "@faker-js/faker": "^10.5.0"
-  },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
   }
 }
 ```
@@ -141,6 +142,51 @@ It is also the tool used in Prisma v7's official documentation examples.
 **Why `@faker-js/faker` goes in `devDependencies`**
 The seed script is only used in development and testing — it is never needed in production.
 Placing it in `devDependencies` keeps it out of production bundles and makes the dependency intent explicit.
+
+**Why the `"prisma": { "seed": ... }` field was removed**
+In Prisma v7, the seed command is configured via `migrations.seed` in `prisma.config.mjs`.
+The `prisma.seed` field in `package.json` is the v6 approach; keeping both would create duplicate and conflicting configuration.
+
+---
+
+### 4. TypeScript configuration cleanup
+
+#### Narrowing `include` in `tsconfig.json`
+
+```json
+// Before
+"include": ["src/**/*", "*.mjs", "*.ts"]
+
+// After
+"include": ["src/**/*"]
+```
+
+**Why remove `*.mjs` and `*.ts`**
+With `rootDir: "./src"` set, the intent is clearly to compile only files under `src/`.
+Aligning `include` with `rootDir` keeps the configuration consistent and explicit.
+Leaving extra patterns also caused the TypeScript language server to apply project settings ambiguously to files outside `src/` (like `prisma/seed.ts`), leading to unstable type resolution.
+
+#### Creating `prisma/tsconfig.json`
+
+```json
+{
+  "extends": "@tsconfig/node24/tsconfig.json",
+  "compilerOptions": {
+    "lib": ["DOM"],
+    "types": ["node"]
+  }
+}
+```
+
+**Why `seed.ts` needs its own tsconfig**
+`seed.ts` lives in `prisma/`, which is outside the `rootDir: "./src"` scope of the root `tsconfig.json`.
+When the root tsconfig doesn't apply, `@types/node` globals like `process` are not resolved, causing editor warnings.
+
+Placing a `tsconfig.json` in `prisma/` lets the TypeScript language server use it as the configuration for all files in that directory, resolving Node.js global types correctly.
+
+**Why a dedicated tsconfig instead of `/// <reference types="node" />`**
+Adding `/// <reference types="node" />` directly to a file is a per-file workaround that has to be repeated for every new script added under `prisma/`.
+A dedicated `tsconfig.json` in the directory applies automatically to all files there — a cleaner and more scalable approach.
 
 ---
 
