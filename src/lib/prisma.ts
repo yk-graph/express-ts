@@ -12,4 +12,5 @@ const adapter = new PrismaMariaDb({
   connectionLimit: 5,
 })
 const prisma = new PrismaClient({ adapter })
+
 export { prisma }
